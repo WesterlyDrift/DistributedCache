@@ -1,11 +1,13 @@
 package com.kvstore.core.storage.LSMTree.memtable;
 
+import com.kvstore.core.storage.LSMTree.comparator.ByteArrayComparator;
 import com.kvstore.core.storage.LSMTree.types.ByteArrayPair;
+import com.kvstore.core.storage.Storage;
 
 import java.util.Iterator;
 import java.util.Random;
 
-public class SkipList implements Iterable<ByteArrayPair> {
+public class SkipList implements Iterable<ByteArrayPair>, Storage {
 
     static final int DEFAULT_ELEMENTS = 1 << 20;
 
@@ -21,44 +23,111 @@ public class SkipList implements Iterable<ByteArrayPair> {
         this(DEFAULT_ELEMENTS);
     }
 
-    public SkipList(int numElements) {
-        levels = (int) Math.ceil(Math.log(numElements) / Math.log(2));
-        size = 0;
-        sentinel = new Node(null, levels);
-        random = new Random();
-        buffer = new Node[levels];
+    public SkipList(int capacity) {
+        this.levels = (int) Math.ceil(Math.log(capacity) / Math.log(2));
+        this.size = 0;
+        this.sentinel = new Node(null, levels);
+        this.random = new Random(System.currentTimeMillis());
+        this.buffer = new Node[levels];
     }
 
-    public void add(ByteArrayPair item) {
-        Node current = sentinel;
+    public int size() {
+        return this.size;
+    }
+
+    private int randomLevel() {
+        int level = 1;
+        long num = random.nextLong();
+        while(level < this.levels && (num & 1L << level) != 0) {
+            level++;
+        }
+        return level;
+    }
+
+    @Override
+    public byte[] get(byte[] key) {
+        Node current = this.sentinel;
         for(int i = levels - 1; i >= 0; i--) {
-            while(current.next[i] != null && current.next[i].val.compareTo(item) < 0) {
+            while(current.next[i] != null && ByteArrayComparator.compare(current.next[i].val.key(), key) < 0) {
                 current = current.next[i];
             }
             buffer[i] = current;
         }
 
-        if(current.next[0] != null && current.next[0].val.compareTo(item) == 0) {
-            current.next[0].val = item;
+        if(current.next[0] != null && ByteArrayComparator.compare(current.next[0].val.key(), key) == 0) {
+            return current.next[0].val.value();
+        }
+        return null;
+    }
+
+    @Override
+    public void delete(byte[] key) {
+        Node current = this.sentinel;
+        for(int i = levels - 1; i >= 0; i--) {
+            while(current.next[i] != null && ByteArrayComparator.compare(current.next[i].val.key(), key) < 0) {
+                current = current.next[i];
+            }
+            buffer[i] = current;
+        }
+
+        if(current.next[0] != null && ByteArrayComparator.compare(current.next[0].val.key(), key) == 0) {
+            boolean last = current.next[0].next[0] == null;
+            for(int i = 0; i < levels - 1; i++) {
+                if(buffer[i].next[i] != current.next[0]) {
+                    break;
+                }
+                buffer[i].next[i] = last ? null : current.next[0].next[i];
+            }
+            this.size--;
+        }
+    }
+
+    public void put(ByteArrayPair pair) {
+        put(pair.key(), pair.value());
+    }
+
+    @Override
+    public void put(byte[] key, byte[] value) {
+        ByteArrayPair pair = new ByteArrayPair(key, value);
+        Node current = this.sentinel;
+        for(int i = levels - 1; i >= 0; i--) {
+            while(current.next[i] != null && current.next[i].val.compareTo(pair) < 0) {
+                current = current.next[i];
+            }
+            buffer[i] = current;
+        }
+
+        if(current.next[0] != null && current.next[0].val.compareTo(pair) == 0) {
+            current.next[0].val = pair;
             return;
         }
 
-        Node newNode = new Node(item, levels);
+        Node newnode = new Node(pair, levels);
+        for(int i = 0; i < randomLevel(); i++) {
+            newnode.next[i] = buffer[i].next[i];
+            buffer[i].next[i] = newnode;
+        }
+        size++;
     }
 
 
-
-    private static final class Node {
+    public static class Node {
         ByteArrayPair val;
         Node[] next;
 
-        Node(ByteArrayPair val, int levels) {
+        Node(ByteArrayPair val, int numLevels) {
             this.val = val;
-            this.next = new Node[levels];
+            this.next = new Node[numLevels];
         }
     }
 
+    @Override
+    public Iterator<ByteArrayPair> iterator() {
+        return new SkipListIterator(sentinel);
+    }
+
     private static class SkipListIterator implements Iterator<ByteArrayPair> {
+
         Node node;
 
         SkipListIterator(Node node) {
@@ -72,13 +141,11 @@ public class SkipList implements Iterable<ByteArrayPair> {
 
         @Override
         public ByteArrayPair next() {
-            if(node.next[0] == null) {
+            if(node == null || node.next[0] == null) {
                 return null;
             }
-
-            ByteArrayPair res = node.next[0].val;
+            ByteArrayPair res =  node.next[0].val;
             node = node.next[0];
-
             return res;
         }
     }
