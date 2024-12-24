@@ -1,33 +1,61 @@
 package com.kvstore.core.storage.LSMTree.io;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 import com.kvstore.core.storage.LSMTree.types.ByteArrayPair;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
+import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 
 public class ExtendedInputStream {
 
     private final FastBufferedInputStream fis;
 
+    /**
+     * Initialize an input stream on a file.
+     *
+     * @param filename the file filename.
+     */
     public ExtendedInputStream(String filename) {
         try {
             fis = new FastBufferedInputStream(new FileInputStream(filename));
             fis.position(0);
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Read a variable byte int from the stream, see readVByteLong()
+     *
+     * @return the next V-Byte int.
+     */
+    public int readVByteInt() {
+        return (int) readVByteLong();
+    }
+
+    /**
+     * Read a variable byte long from the stream.
+     * <p>
+     * A variable byte long is written as:
+     * <tt>|continuation bit| 7-bits payload|</tt>
+     * <p>
+     * For instance the number 10101110101010110 is represented using 24 bits as follows:
+     * <p>
+     * |1|1010110|1|0000101|0|0111010|
+     *
+     * @return the next V-Byte long.
+     */
     public long readVByteLong() {
         long result = 0;
         int b;
         int shift = 0;
-        while(true) {
-            b = readVByteInt();
-            result |= (((long) b & 0x7f) << shift);
+        while (true) {
+            b = readByteInt();
+            result |= (((long) b & 0x7F) << shift);
 
-            if((b & 0x80) == 0x80) {
+            if ((b & 0x80) == 0x80){
                 break;
             }
 
@@ -36,39 +64,58 @@ public class ExtendedInputStream {
         return result - 1;
     }
 
-    public int readVByteInt() {
-        return (int) readVByteLong();
-    }
-
+    /**
+     * Read 8 bytes representing a long.
+     *
+     * @return the next long in the stream.
+     */
     public long readLong() {
         try {
             long result = 0;
-            for(byte b : fis.readNBytes(8)) {
+            for (byte b : fis.readNBytes(8)) {
                 result <<= 8;
-                result |= (b & 0xff);
+                result |= (b & 0xFF);
             }
             return result;
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Read a single byte as an int.
+     *
+     * @return the next 8-bits integer in the stream.
+     */
     public int readByteInt() {
         try {
             return fis.read();
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Read N bytes.
+     *
+     * @param n the wanted number of bytes.
+     * @return an array with the next N bytes.
+     */
     public byte[] readNBytes(int n) {
         try {
             return fis.readNBytes(n);
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Read a ByteArrayPair from the stream.
+     * <p>
+     * Each array is encoded as length, payload.
+     *
+     * @return the next item in the stream.
+     */
     public ByteArrayPair readBytePair() {
         try {
             int keyLength = readVByteInt();
@@ -78,32 +125,47 @@ public class ExtendedInputStream {
                     readNBytes(keyLength),
                     readNBytes(valueLength)
             );
-        } catch(Exception e) {
+        } catch (Exception e) {
             return null;
         }
     }
 
+    /**
+     * Skip N bytes from the stream.
+     *
+     * @param n the number of bytes to skip.
+     * @return the number of bytes skipped.
+     */
     public long skip(int n) {
         try {
             return fis.skip(n);
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Position the stream at the wanted offset.
+     *
+     * @param offset the offset to place the stream to.
+     */
     public void seek(long offset) {
         try {
             fis.position(offset);
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Close resources.
+     */
     public void close() {
         try {
             fis.close();
-        } catch(Exception e ){
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
 }
