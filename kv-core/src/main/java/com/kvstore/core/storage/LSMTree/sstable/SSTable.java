@@ -34,15 +34,15 @@ public class SSTable implements Iterable<ByteArrayPair> {
     byte[] maxKey;
 
     public SSTable(String directory, Iterator<ByteArrayPair> items, int sampleSize) {
-        this()
+        this(getNextSsTFileName(directory), items, sampleSize, 1024 * 1024 * 256);
     }
 
     public SSTable(String directory, Iterator<ByteArrayPair> items) {
-
+        this(getNextSsTFileName(directory), items, DEFAULT_SAMPLE_SIZE, 1024 * 1024 * 256);
     }
 
     public SSTable(String directory, Iterator<ByteArrayPair> items, long maxByteSize) {
-
+        this(getNextSsTFileName(directory), items, DEFAULT_SAMPLE_SIZE, maxByteSize);
     }
 
     public SSTable(String filename, Iterator<ByteArrayPair> items, int sampleSize, long maxByteSize) {
@@ -54,6 +54,10 @@ public class SSTable implements Iterable<ByteArrayPair> {
     public SSTable(String filename) {
         this.filename = filename;
         initializeFromDisk(filename);
+    }
+
+    private static String getNextSsTFileName(String directory) {
+        return String.format("%s/sst_%d", directory, SST_COUNTER.getAndIncrement());
     }
 
     private void initializeFromDisk(String filename) {
