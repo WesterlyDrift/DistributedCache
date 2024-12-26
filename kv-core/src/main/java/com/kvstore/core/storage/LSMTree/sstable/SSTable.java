@@ -4,11 +4,17 @@ import com.kvstore.core.storage.LSMTree.bloom.BloomFilter;
 import com.kvstore.core.storage.LSMTree.io.ExtendedInputStream;
 import com.kvstore.core.storage.LSMTree.io.ExtendedOutputStream;
 import com.kvstore.core.storage.LSMTree.types.ByteArrayPair;
+import com.kvstore.core.storage.LSMTree.comparator.ByteArrayComparator;
+import com.kvstore.core.storage.LSMTree.utils.IteratorMerger;
+import com.kvstore.core.storage.LSMTree.utils.UniqueSortedIterator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class SSTable implements Iterable<ByteArrayPair> {
@@ -34,15 +40,15 @@ public class SSTable implements Iterable<ByteArrayPair> {
     byte[] maxKey;
 
     public SSTable(String directory, Iterator<ByteArrayPair> items, int sampleSize) {
-        this(getNextSsTFileName(directory), items, sampleSize, 1024 * 1024 * 256);
+        this(getNextSstFileName(directory), items, sampleSize, 1024 * 1024 * 256);
     }
 
     public SSTable(String directory, Iterator<ByteArrayPair> items) {
-        this(getNextSsTFileName(directory), items, DEFAULT_SAMPLE_SIZE, 1024 * 1024 * 256);
+        this(getNextSstFileName(directory), items, DEFAULT_SAMPLE_SIZE, 1024 * 1024 * 256);
     }
 
     public SSTable(String directory, Iterator<ByteArrayPair> items, long maxByteSize) {
-        this(getNextSsTFileName(directory), items, DEFAULT_SAMPLE_SIZE, maxByteSize);
+        this(getNextSstFileName(directory), items, DEFAULT_SAMPLE_SIZE, maxByteSize);
     }
 
     public SSTable(String filename, Iterator<ByteArrayPair> items, int sampleSize, long maxByteSize) {
@@ -56,7 +62,89 @@ public class SSTable implements Iterable<ByteArrayPair> {
         initializeFromDisk(filename);
     }
 
-    private static String getNextSsTFileName(String directory) {
+
+    public static ObjectArrayList<SSTable> sortedRun(String dataDir, long sstMaxSize, SSTable... tables) {
+        SSTableIterator[] itArray = Arrays.stream(tables).map(SSTable::iterator).toArray(SSTableIterator[]::new);
+
+        IteratorMerger<ByteArrayPair> merger = new IteratorMerger<>(itArray);
+        UniqueSortedIterator<ByteArrayPair> uniqueSortedIterator = new UniqueSortedIterator<>(merger);
+
+        ObjectArrayList<SSTable> res = new ObjectArrayList<>();
+
+        while(uniqueSortedIterator.hasNext()) {
+            res.add(new SSTable(getNextSstFileName(dataDir), uniqueSortedIterator, DEFAULT_SAMPLE_SIZE, sstMaxSize));
+        }
+
+        return res;
+    }
+
+
+    public byte[] get(byte[] key) {
+        if(ByteArrayComparator.compare(key, minKey) < 0 || ByteArrayComparator.compare(key, maxKey) > 0 || !bloomFilter.mightContain(key)) {
+            return null;
+        }
+
+        int offsetIndex = getCandidateOffsetIndex(key);
+        long offset =  sparseOffsets.getLong(offsetIndex);
+        int remaining = size - sparseSizeCount.getInt(offsetIndex);
+        is.seek(offset);
+
+        int cmp = 1;
+        int searchKeyLength = key.length;
+        int readKeyLength = 0;
+        int readValueLength = 0;
+
+        byte[] readKey;
+
+        while(cmp > 0 && remaining > 0) {
+            remaining--;
+            readKeyLength = is.readVByteInt();
+
+            if(readKeyLength > searchKeyLength) {
+                return null;
+            }
+
+            if(readKeyLength < searchKeyLength) {
+                readValueLength = is.readVByteInt();
+                is.skip(readKeyLength + readValueLength);
+                continue;
+            }
+
+            readValueLength = is.readVByteInt();
+            readKey = is.readNBytes(readKeyLength);
+            cmp = ByteArrayComparator.compare(key, readKey);
+
+            if(cmp == 0) {
+                return is.readNBytes(readValueLength);
+            } else {
+                is.skip(readValueLength);
+            }
+        }
+        return null;
+    }
+
+    private int getCandidateOffsetIndex(byte[] key) {
+        int low = 0;
+        int high = sparseOffsets.size() - 1;
+
+        while(low < high - 1) {
+            int mid = (high - low) / 2 + low;
+            int cmp = ByteArrayComparator.compare(key, sparseKeys.get(mid));
+
+            if(cmp < 0) {
+                high = mid - 1;
+            } else if(cmp > 0) {
+                low = mid;
+            } else {
+                return mid;
+            }
+        }
+
+        return low;
+    }
+
+
+    private static String getNextSstFileName(String directory) {
         return String.format("%s/sst_%d", directory, SST_COUNTER.getAndIncrement());
     }
 
@@ -187,5 +275,27 @@ public class SSTable implements Iterable<ByteArrayPair> {
             return table.is.readBytePair();
         }
     }
+
+    @Override
+    public Iterator<ByteArrayPair> iterator() {
+        is.seek(0);
+        return new SSTableIterator(this);
+    }
+
+    public void close() {
+        is.close();
+    }
+
+    public void deleteFiles() {
+        for(var extention : List.of(DATA_FILE_EXTENSION, BLOOM_FILE_EXTENSION, INDEX_FILE_EXTENSION)) {
+            new File(filename + extention).delete();
+        }
+    }
+
+    public void closeAndDelete() {
+        close();
+        deleteFiles();
+    }
+
 
 }
