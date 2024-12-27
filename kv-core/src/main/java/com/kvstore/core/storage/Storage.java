@@ -9,6 +9,6 @@ public interface Storage {
     void put (byte[] key, byte[] value) throws IOException;
     byte[] get(byte[] key) throws IOException;
     void delete(byte[] key) throws IOException;
-    CloseableIterator<KVEntry> scan() throws IOException;
+    //CloseableIterator<KVEntry> scan() throws IOException;
     void close() throws IOException;
 }

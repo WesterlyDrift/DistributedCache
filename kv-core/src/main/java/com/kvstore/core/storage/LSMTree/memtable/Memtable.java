@@ -36,4 +36,9 @@ public class Memtable implements Iterable<ByteArrayPair> {
     public Iterator<ByteArrayPair> iterator() {
         return new UniqueSortedIterator<>(list.iterator());
     }
+
+    @Override
+    public String toString() {
+        return list.toString();
+    }
 }

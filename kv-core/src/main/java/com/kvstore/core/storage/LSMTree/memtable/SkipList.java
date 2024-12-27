@@ -4,12 +4,13 @@ import com.kvstore.core.storage.LSMTree.comparator.ByteArrayComparator;
 import com.kvstore.core.storage.LSMTree.types.ByteArrayPair;
 import com.kvstore.core.storage.Storage;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Random;
 
-public class SkipList implements Iterable<ByteArrayPair>, Storage {
+public class SkipList implements Iterable<ByteArrayPair> {
 
-    static final int DEFAULT_ELEMENTS = 1 << 20;
+    static final int DEFAULT_ELEMENTS = 1 << 10;
 
     final Node sentinel;
 
@@ -44,7 +45,6 @@ public class SkipList implements Iterable<ByteArrayPair>, Storage {
         return level;
     }
 
-    @Override
     public byte[] get(byte[] key) {
         Node current = this.sentinel;
         for(int i = levels - 1; i >= 0; i--) {
@@ -60,7 +60,6 @@ public class SkipList implements Iterable<ByteArrayPair>, Storage {
         return null;
     }
 
-    @Override
     public void delete(byte[] key) {
         Node current = this.sentinel;
         for(int i = levels - 1; i >= 0; i--) {
@@ -82,11 +81,14 @@ public class SkipList implements Iterable<ByteArrayPair>, Storage {
         }
     }
 
+    public void close() throws IOException {
+
+    }
+
     public void put(ByteArrayPair pair) {
         put(pair.key(), pair.value());
     }
 
-    @Override
     public void put(byte[] key, byte[] value) {
         ByteArrayPair pair = new ByteArrayPair(key, value);
         Node current = this.sentinel;
@@ -149,4 +151,30 @@ public class SkipList implements Iterable<ByteArrayPair>, Storage {
             return res;
         }
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("SkipList {\n");
+        sb.append("  Levels: ").append(levels).append("\n");
+        sb.append("  Size: ").append(size).append("\n");
+
+        // 打印每一层的数据
+        for (int i = levels - 1; i >= 0; i--) {
+            sb.append(String.format("  Level %2d: ", i));
+            Node current = sentinel;
+            int nodesInLevel = 0;
+
+            while (current.next[i] != null) {
+                sb.append(current.next[i].val).append(" -> ");
+                current = current.next[i];
+                nodesInLevel++;
+
+            }
+            sb.append("END\n");
+        }
+
+        return sb.toString();
+    }
+
 }

@@ -208,7 +208,10 @@ public class LSMTree {
             i += 1;
         }
 
-        s.append("}");
+        s.append("}\n\n");
+
+        s.append("Mutable memtable:\n");
+        s.append(mutableMemtable);
         return s.toString();
     }
 }
