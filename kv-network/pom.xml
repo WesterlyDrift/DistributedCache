@@ -21,7 +21,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
-            <scope>compile</scope>
         </dependency>
 
         <!-- Spring Boot 3.3.5 版本 -->
