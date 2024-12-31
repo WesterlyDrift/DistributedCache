@@ -3,6 +3,7 @@ package com.kvstore.raft.rpc;
 import com.kvstore.raft.message.AppendEntriesRequest;
 import com.kvstore.raft.message.RaftMessage;
 import com.kvstore.raft.message.VoteRequest;
+import com.kvstore.raft.node.RaftNode;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
