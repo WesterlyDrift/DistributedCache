@@ -1,5 +1,6 @@
 package com.kvstore.raft.snapshot;
 
+import com.kvstore.raft.common.KVStore;
 import com.kvstore.raft.storage.LogEntry;
 import lombok.Getter;
 
@@ -112,5 +113,5 @@ public class SnapshotManager {
             lock.readLock().unlock();
         }
     }
-}
+
 }

@@ -67,6 +67,10 @@ public class LSMTree {
         }
     }
 
+    public void add(byte[] key, byte[] value) {
+        this.add(new ByteArrayPair(key, value));
+    }
+
     public void delete(byte[] key) {
         synchronized(mutableMemtableLock) {
             mutableMemtable.delete(key);
@@ -213,5 +217,19 @@ public class LSMTree {
         s.append("Mutable memtable:\n");
         s.append(mutableMemtable);
         return s.toString();
+    }
+
+    public void clear() {
+        synchronized(tableLock) {
+            levels.forEach(ObjectArrayList::clear);
+        }
+
+        synchronized(immutableMemtableLock) {
+            immutableMemtables.clear();
+        }
+
+        synchronized(mutableMemtableLock) {
+            mutableMemtable.clear();
+        }
     }
 }

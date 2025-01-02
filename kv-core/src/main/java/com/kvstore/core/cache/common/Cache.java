@@ -1,4 +1,4 @@
-package com.kvstore.core.cache;
+package com.kvstore.core.cache.common;
 
 public interface Cache<K, V> {
     V get(K key);
@@ -6,4 +6,5 @@ public interface Cache<K, V> {
     V remove(K key);
     void clear();
     int size();
+    boolean isEmpty();
 }

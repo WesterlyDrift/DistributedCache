@@ -112,6 +112,11 @@ public class SkipList implements Iterable<ByteArrayPair> {
         size++;
     }
 
+    public void clear() {
+        this.sentinel.next = new Node[levels];
+        this.size = 0;
+    }
+
 
     public static class Node {
         ByteArrayPair val;

@@ -1,10 +1,10 @@
-package com.kvstore.core.cache;
+package com.kvstore.core.cache.cacheimpl;
 
 import com.google.common.collect.Maps;
+import com.kvstore.core.cache.common.Cache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.TreeMap;

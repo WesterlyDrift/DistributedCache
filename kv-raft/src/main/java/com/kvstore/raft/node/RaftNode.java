@@ -12,6 +12,7 @@ import com.kvstore.raft.snapshot.SnapshotManager;
 import com.kvstore.raft.storage.LogEntry;
 import com.kvstore.raft.storage.RaftState;
 import com.kvstore.raft.storage.RaftStorage;
+import com.kvstore.raft.common.KVStore;
 
 import java.util.ArrayList;
 import java.util.Collections;

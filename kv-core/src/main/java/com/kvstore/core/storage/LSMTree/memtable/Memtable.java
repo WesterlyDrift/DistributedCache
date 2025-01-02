@@ -41,4 +41,9 @@ public class Memtable implements Iterable<ByteArrayPair> {
     public String toString() {
         return list.toString();
     }
+
+    public void clear() {
+        list.clear();
+        byteSize = 0L;
+    }
 }
