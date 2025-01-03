@@ -55,6 +55,11 @@ public class LRUCache<K, V> implements Cache<K, V> {
     }
 
     @Override
+    public boolean isEmpty() {
+        return cache.isEmpty();
+    }
+
+    @Override
     public void put(K key, V value) {
         Node<K, V> node = cache.get(key);
         if(node != null) {
@@ -74,14 +79,12 @@ public class LRUCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public V remove(K key) {
+    public void remove(K key) {
         Node<K, V> node = cache.get(key);
         if(node != null) {
             removeNode(node);
             cache.remove(key);
-            return node.value;
         }
-        return null;
     }
 
     @Override

@@ -89,7 +89,7 @@ public class LFUCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public V remove(K key) {
+    public void remove(K key) {
         Node<K, V> node = cache.get(key);
         if(node != null) {
             frequencies.get(node.frequency).remove(node);
@@ -97,9 +97,7 @@ public class LFUCache<K, V> implements Cache<K, V> {
                 frequencies.remove(node.frequency);
             }
             cache.remove(key);
-            return node.value;
         }
-        return null;
     }
 
     @Override
@@ -112,5 +110,10 @@ public class LFUCache<K, V> implements Cache<K, V> {
     @Override
     public int size() {
         return cache.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return cache.isEmpty();
     }
 }
